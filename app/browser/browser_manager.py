@@ -1,3 +1,4 @@
+import os
 import asyncio
 import logging
 from pathlib import Path
@@ -44,6 +45,14 @@ class BrowserManager:
         Launches or retrieves the persistent Playwright Chromium browser.
         Returns the primary active Page.
         """
+        # Guard against running persistent Chromium in serverless cloud environments (e.g. Vercel)
+        if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+            raise RuntimeError(
+                "Browser automation must run in the local agent environment (Python on Windows/macOS/Linux) "
+                "to maintain persistent browser profiles, visible manual login, and long-running discovery. "
+                "Serverless functions do not support long-running persistent browser processes."
+            )
+
         if async_playwright is None:
             raise RuntimeError(
                 "Playwright is not installed. Please run: pip install -r requirements.txt && playwright install chromium"

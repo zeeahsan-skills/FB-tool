@@ -24,18 +24,22 @@ def setup_logging(log_level: str = "INFO") -> logging.Logger:
     if root_logger.hasHandlers():
         root_logger.handlers.clear()
 
-    # Console Handler
+    # Console Handler (always enabled)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(numeric_level)
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
-    # File Handler
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
-    file_handler.setLevel(numeric_level)
-    file_handler.setFormatter(formatter)
-    root_logger.addHandler(file_handler)
+    # File Handler (attempt local file logging, gracefully skip if filesystem is read-only)
+    try:
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setLevel(numeric_level)
+        file_handler.setFormatter(formatter)
+        root_logger.addHandler(file_handler)
+    except (OSError, PermissionError) as e:
+        sys.stderr.write(f"Warning: File logging disabled due to filesystem constraint: {e}\n")
 
     logger = logging.getLogger("facebook_agent")
-    logger.info("Structured logging initialized. Writing logs to %s", log_file)
+    logger.info("Structured logging initialized.")
     return logger

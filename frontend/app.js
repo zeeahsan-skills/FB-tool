@@ -37,6 +37,43 @@ const btnRefreshResults = document.getElementById("btn-refresh-results");
 
 const btnClearLogs = document.getElementById("btn-clear-logs");
 const terminalOutput = document.getElementById("terminal-output");
+const inputApiBase = document.getElementById("input-api-base");
+
+// Determine Agent API Base URL (defaults to origin if local, or localStorage / localhost if on static/cloud host)
+function getApiBaseUrl() {
+  if (inputApiBase && inputApiBase.value.trim()) {
+    return inputApiBase.value.trim().replace(/\/+$/, "");
+  }
+  const saved = localStorage.getItem("fb_agent_api_base");
+  if (saved) {
+    if (inputApiBase) inputApiBase.value = saved;
+    return saved;
+  }
+  // If running on non-localhost (e.g. Vercel), default to local agent address
+  if (window.location.hostname !== "127.0.0.1" && window.location.hostname !== "localhost") {
+    const defaultLocal = "http://127.0.0.1:8000";
+    if (inputApiBase) inputApiBase.value = defaultLocal;
+    return defaultLocal;
+  }
+  return "";
+}
+
+if (inputApiBase) {
+  const initialBase = getApiBaseUrl();
+  inputApiBase.value = initialBase;
+  inputApiBase.addEventListener("change", () => {
+    localStorage.setItem("fb_agent_api_base", inputApiBase.value.trim());
+    appendLog(`Agent API base updated to: ${inputApiBase.value.trim() || "(current origin)"}`, "info");
+    checkHealth();
+    updateBrowserStatus();
+    updateDiscoveryStatus();
+  });
+}
+
+function apiUrl(path) {
+  const base = getApiBaseUrl();
+  return base ? `${base}${path}` : path;
+}
 
 function getTimestamp() {
   const d = new Date();
@@ -57,7 +94,7 @@ function appendLog(message, type = "info") {
 
 async function checkHealth() {
   try {
-    const res = await fetch("/api/health");
+    const res = await fetch(apiUrl("/api/health"));
     if (res.ok) {
       const data = await res.json();
       healthText.textContent = `API Online (${data.environment})`;
@@ -74,7 +111,7 @@ async function checkHealth() {
 
 async function updateBrowserStatus() {
   try {
-    const res = await fetch("/api/browser/status");
+    const res = await fetch(apiUrl("/api/browser/status"));
     if (!res.ok) throw new Error("Status check returned error");
 
     const data = await res.json();
@@ -108,7 +145,7 @@ async function startBrowser() {
   appendLog("Starting Playwright browser and navigating to Facebook...", "info");
 
   try {
-    const res = await fetch("/api/browser/start?open_fb=true", { method: "POST" });
+    const res = await fetch(apiUrl("/api/browser/start?open_fb=true"), { method: "POST" });
     const data = await res.json();
 
     if (res.ok) {
@@ -132,7 +169,7 @@ async function stopBrowser() {
   appendLog("Stopping browser and persisting session...", "info");
 
   try {
-    const res = await fetch("/api/browser/stop", { method: "POST" });
+    const res = await fetch(apiUrl("/api/browser/stop"), { method: "POST" });
     const data = await res.json();
     if (res.ok) {
       appendLog("Browser cleanly closed. Session data saved.", "success");
@@ -196,7 +233,7 @@ btnAddKeyword.addEventListener("click", () => createKeywordPill(""));
 
 async function updateDiscoveryStatus() {
   try {
-    const res = await fetch("/api/discovery/status");
+    const res = await fetch(apiUrl("/api/discovery/status"));
     if (!res.ok) return;
 
     const data = await res.json();
@@ -234,7 +271,7 @@ async function updateDiscoveryStatus() {
 
 async function fetchDiscoveryResults() {
   try {
-    const res = await fetch("/api/discovery/results");
+    const res = await fetch(apiUrl("/api/discovery/results"));
     if (!res.ok) return;
 
     const data = await res.json();
@@ -321,7 +358,7 @@ async function startDiscovery() {
   appendLog(`Initiating Discovery: Niche="${niche}", Country="${country}", Keywords=[${keywords.join(", ")}]`, "info");
 
   try {
-    const res = await fetch("/api/discovery/start", {
+    const res = await fetch(apiUrl("/api/discovery/start"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -352,7 +389,7 @@ async function stopDiscovery() {
   appendLog("Halting group discovery. Discovered groups will be preserved...", "info");
 
   try {
-    const res = await fetch("/api/discovery/stop", { method: "POST" });
+    const res = await fetch(apiUrl("/api/discovery/stop"), { method: "POST" });
     const data = await res.json();
     if (res.ok) {
       appendLog(`Discovery stopped cleanly. Total groups saved: ${data.groups_found}`, "warning");

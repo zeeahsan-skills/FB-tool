@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
@@ -24,9 +25,15 @@
           <p class="brand-subtitle">Discovery Engine Active • Phase 2 / 6</p>
         </div>
       </div>
-      <div class="api-badge" id="api-health-badge">
-        <span class="status-dot"></span>
-        <span id="api-health-text">API Checking...</span>
+      <div class="header-controls">
+        <div class="api-endpoint-config">
+          <label for="input-api-base" class="api-label">Agent API:</label>
+          <input type="text" id="input-api-base" class="api-input" value="" placeholder="http://127.0.0.1:8000" title="Address of your local running agent server">
+        </div>
+        <div class="api-badge" id="api-health-badge">
+          <span class="status-dot"></span>
+          <span id="api-health-text">API Checking...</span>
+        </div>
       </div>
     </header>
 
@@ -283,6 +290,14 @@
     </footer>
   </div>
 
-  <script src="/static/app.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // Fallback if not loaded via relative path
+    if (typeof checkHealth === 'undefined') {
+      const s = document.createElement('script');
+      s.src = '/static/app.js';
+      document.body.appendChild(s);
+    }
+  </script>
 </body>
 </html>
