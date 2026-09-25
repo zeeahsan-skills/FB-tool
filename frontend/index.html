@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Facebook Group Research Agent - Control Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Facebook Group Research Agent</h1>
+          <p class="brand-subtitle">Discovery Engine Active • Phase 2 / 6</p>
+        </div>
+      </div>
+      <div class="api-badge" id="api-health-badge">
+        <span class="status-dot"></span>
+        <span id="api-health-text">API Checking...</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-container">
+      <!-- Browser Status Card (Prompt 1) -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Browser Session Manager</h2>
+            <p class="card-description">
+              Persistent Chromium session for authenticated group searches and cookie reuse.
+            </p>
+          </div>
+          <div class="badge-status" id="browser-indicator-badge">
+            <span class="pulse-dot" id="pulse-dot"></span>
+            <span id="browser-status-label">Checking Status...</span>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <div class="metric-label">Browser Engine</div>
+            <div class="metric-value">Playwright (Chromium)</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Headless Mode</div>
+            <div class="metric-value" id="headless-status">—</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Active Page Title</div>
+            <div class="metric-value truncate" id="active-title">—</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Active URL</div>
+            <div class="metric-value truncate" id="active-url">—</div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button id="btn-start-browser" class="btn btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span>Start Browser & Open Facebook</span>
+          </button>
+          
+          <button id="btn-stop-browser" class="btn btn-secondary" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect x="6" y="6" width="12" height="12"></rect>
+            </svg>
+            <span>Stop Browser</span>
+          </button>
+
+          <button id="btn-refresh-status" class="btn btn-ghost">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+            </svg>
+            <span>Refresh</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Group Discovery Configuration & Control (Prompt 2) -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Group Discovery Engine</h2>
+            <p class="card-description">
+              Search Facebook for community groups across target niches, countries, and keywords with automated deduplication.
+            </p>
+          </div>
+          <div class="badge-status" id="discovery-indicator-badge">
+            <span class="pulse-dot" id="discovery-pulse-dot"></span>
+            <span id="discovery-status-label">Idle</span>
+          </div>
+        </div>
+
+        <form id="discovery-form" class="discovery-grid">
+          <div class="form-group">
+            <label class="form-label" for="input-niche">Niche</label>
+            <input type="text" id="input-niche" class="form-input" placeholder="e.g. Dating, Fitness, Real Estate" value="Dating" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-country">Country / Region</label>
+            <input type="text" id="input-country" class="form-input" placeholder="e.g. USA, UK, Canada" value="USA" required>
+          </div>
+
+          <div class="form-group full-width">
+            <div class="label-row">
+              <label class="form-label">Search Keywords</label>
+              <button type="button" id="btn-add-keyword" class="btn-text">+ Add keyword</button>
+            </div>
+            <div id="keywords-container" class="keywords-list">
+              <div class="keyword-pill-item">
+                <input type="text" class="form-input keyword-input" value="dating groups" required>
+                <button type="button" class="btn-remove-kw" title="Remove">&times;</button>
+              </div>
+              <div class="keyword-pill-item">
+                <input type="text" class="form-input keyword-input" value="singles USA" required>
+                <button type="button" class="btn-remove-kw" title="Remove">&times;</button>
+              </div>
+              <div class="keyword-pill-item">
+                <input type="text" class="form-input keyword-input" value="USA singles">
+                <button type="button" class="btn-remove-kw" title="Remove">&times;</button>
+              </div>
+              <div class="keyword-pill-item">
+                <input type="text" class="form-input keyword-input" value="dating community">
+                <button type="button" class="btn-remove-kw" title="Remove">&times;</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-max-results">Max Results Per Keyword</label>
+            <input type="number" id="input-max-results" class="form-input" min="5" max="100" value="50">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-scroll-count">Scroll Batches Per Keyword</label>
+            <input type="number" id="input-scroll-count" class="form-input" min="1" max="20" value="5">
+          </div>
+        </form>
+
+        <!-- Live Progress Banner -->
+        <div id="discovery-progress-banner" class="progress-banner hidden">
+          <div class="progress-details">
+            <div>
+              <span class="progress-sub">Searching Keyword:</span>
+              <strong id="prog-current-keyword" class="progress-keyword">—</strong>
+            </div>
+            <div>
+              <span class="progress-sub">Progress:</span>
+              <strong id="prog-keywords-ratio">0 / 0 keywords</strong>
+            </div>
+            <div>
+              <span class="progress-sub">Unique Groups Found:</span>
+              <strong id="prog-groups-count" class="progress-count">0</strong>
+            </div>
+          </div>
+          <div class="progress-track">
+            <div id="progress-bar-fill" class="progress-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <div class="action-bar" style="margin-top: 1.25rem;">
+          <button id="btn-start-discovery" class="btn btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <span>Start Discovery</span>
+          </button>
+
+          <button id="btn-stop-discovery" class="btn btn-secondary" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect x="6" y="6" width="12" height="12"></rect>
+            </svg>
+            <span>Stop</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Discovered Groups Results Table -->
+      <section class="card results-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Discovered Groups (<span id="results-count-badge">0</span>)</h2>
+            <p class="card-description">
+              Deduplicated by canonical URL. All matching keywords preserved.
+            </p>
+          </div>
+          <button id="btn-refresh-results" class="btn-sm">Refresh Table</button>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="groups-table">
+            <thead>
+              <tr>
+                <th>Group Name</th>
+                <th>Members</th>
+                <th>Privacy</th>
+                <th>Matched Keywords</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="groups-table-body">
+              <tr class="empty-row">
+                <td colspan="5">No groups discovered yet. Launch a discovery search above.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Architecture Pipeline Roadmap -->
+      <section class="card roadmap-card">
+        <h2 class="card-title">Agent Architecture Pipeline</h2>
+        <div class="pipeline-steps">
+          <div class="step-card completed">
+            <div class="step-num">Phase 1</div>
+            <div class="step-title">Foundation & Browser</div>
+            <div class="step-desc">Persistent Session & API (Completed)</div>
+          </div>
+          <div class="step-card active">
+            <div class="step-num">Phase 2</div>
+            <div class="step-title">Discovery Engine</div>
+            <div class="step-desc">Group Keyword Search & Metadata (Active)</div>
+          </div>
+          <div class="step-card upcoming">
+            <div class="step-num">Phase 3</div>
+            <div class="step-title">Content Ingestion</div>
+            <div class="step-desc">Post & Discussion Feed Extraction</div>
+          </div>
+          <div class="step-card upcoming">
+            <div class="step-num">Phase 4</div>
+            <div class="step-title">AI Analyzer</div>
+            <div class="step-desc">Gemini Intelligence & Pain Points</div>
+          </div>
+          <div class="step-card upcoming">
+            <div class="step-num">Phase 5</div>
+            <div class="step-title">Database Storage</div>
+            <div class="step-desc">Supabase Persistence & Relations</div>
+          </div>
+          <div class="step-card upcoming">
+            <div class="step-num">Phase 6</div>
+            <div class="step-title">Export & Reporting</div>
+            <div class="step-desc">Reports & Actionable Intelligence</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Live Terminal / Activity Log -->
+      <section class="card terminal-card">
+        <div class="terminal-header">
+          <div class="terminal-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+            <span>Activity & Event Stream</span>
+          </div>
+          <button id="btn-clear-logs" class="btn-sm">Clear Terminal</button>
+        </div>
+        <div id="terminal-output" class="terminal-body">
+          <div class="log-entry info"><span class="log-time">[System]</span> Dashboard initialized. Polling agent status...</div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      Facebook Group Research Agent &bull; Production Foundation &bull; Local API running at <a href="/docs" target="_blank">/docs</a>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
