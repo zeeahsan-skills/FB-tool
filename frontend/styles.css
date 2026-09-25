@@ -163,6 +163,61 @@ body {
   gap: 1.5rem;
 }
 
+/* Agent Offline Banner */
+.agent-offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  color: #fef3c7;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.agent-offline-banner.hidden {
+  display: none;
+}
+
+.offline-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.offline-content {
+  flex: 1;
+}
+
+.offline-content strong {
+  display: block;
+  font-size: 0.92rem;
+  color: #fde68a;
+  margin-bottom: 0.2rem;
+}
+
+.offline-content code {
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  color: #fbbf24;
+  font-family: var(--font-mono);
+}
+
+.btn-retry {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fef3c7;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-retry:hover {
+  background: rgba(245, 158, 11, 0.35);
+}
+
 /* Card Common */
 .card {
   background: var(--bg-card);

@@ -49,6 +49,12 @@ function getApiBaseUrl() {
     if (inputApiBase) inputApiBase.value = saved;
     return saved;
   }
+  // Check for environment variable injected into window
+  if (window.AGENT_API_URL || window.NEXT_PUBLIC_AGENT_API_URL) {
+    const envUrl = (window.AGENT_API_URL || window.NEXT_PUBLIC_AGENT_API_URL).replace(/\/+$/, "");
+    if (inputApiBase) inputApiBase.value = envUrl;
+    return envUrl;
+  }
   // If running on non-localhost (e.g. Vercel), default to local agent address
   if (window.location.hostname !== "127.0.0.1" && window.location.hostname !== "localhost") {
     const defaultLocal = "http://127.0.0.1:8000";
@@ -92,6 +98,18 @@ function appendLog(message, type = "info") {
 // Health & Browser Controls
 // ---------------------------------------------------------------------------
 
+const agentOfflineAlert = document.getElementById("agent-offline-alert");
+const btnRetryAgentConn = document.getElementById("btn-retry-agent-conn");
+
+if (btnRetryAgentConn) {
+  btnRetryAgentConn.addEventListener("click", () => {
+    appendLog("Retrying connection to local agent...", "info");
+    checkHealth();
+    updateBrowserStatus();
+    updateDiscoveryStatus();
+  });
+}
+
 async function checkHealth() {
   try {
     const res = await fetch(apiUrl("/api/health"));
@@ -99,13 +117,16 @@ async function checkHealth() {
       const data = await res.json();
       healthText.textContent = `API Online (${data.environment})`;
       statusDot.classList.add("active");
+      if (agentOfflineAlert) agentOfflineAlert.classList.add("hidden");
     } else {
       healthText.textContent = "API Error";
       statusDot.classList.remove("active");
+      if (agentOfflineAlert) agentOfflineAlert.classList.remove("hidden");
     }
   } catch (err) {
     healthText.textContent = "API Offline";
     statusDot.classList.remove("active");
+    if (agentOfflineAlert) agentOfflineAlert.classList.remove("hidden");
   }
 }
 

@@ -39,6 +39,19 @@
 
     <!-- Main Content -->
     <main class="main-container">
+      <!-- Local Agent Connection Alert (Displayed when frontend is on Vercel and local agent is offline) -->
+      <div id="agent-offline-alert" class="agent-offline-banner hidden">
+        <div class="offline-icon">🔌</div>
+        <div class="offline-content">
+          <strong>Local Agent Offline</strong>
+          <p>
+            Facebook browser automation, persistent profiles, and group discovery execute strictly on your local machine.
+            Start the agent locally with <code>python run.py</code> and ensure the <strong>Agent API</strong> above is set to <code>http://127.0.0.1:8000</code>.
+          </p>
+        </div>
+        <button id="btn-retry-agent-conn" class="btn-sm btn-retry">Retry Connection</button>
+      </div>
+
       <!-- Browser Status Card (Prompt 1) -->
       <section class="card">
         <div class="card-header">

@@ -129,6 +129,44 @@ The server will start at:
 
 ---
 
+## Deployment Architecture: Local Agent vs. Vercel
+
+```text
+┌────────────────────────────────────────────────────────┐
+│                   LOCAL AGENT (Primary)                │
+│                                                        │
+│  FastAPI (127.0.0.1:8000)                             │
+│     ├── Playwright Chromium (Visible Mode)             │
+│     ├── Persistent Profile (./data/browser-profile)    │
+│     └── Background Group Discovery Engine              │
+└──────────────────────────▲─────────────────────────────┘
+                           │ Agent API (http://127.0.0.1:8000)
+┌──────────────────────────┴─────────────────────────────┐
+│                 VERCEL DEPLOYMENT (Static)             │
+│                                                        │
+│  • Pure static frontend hosting (HTML/CSS/JS)          │
+│  • No serverless functions, no crashes                 │
+│  • Shows 'Local Agent Offline' if agent is stopped     │
+└────────────────────────────────────────────────────────┘
+```
+
+### 1. Local Agent (Runs Browser Automation)
+The browser automation backend **must run locally on your computer** where persistent cookies, visible browser windows for manual login, and long-running discovery loops are supported.
+
+Start the agent:
+```powershell
+python run.py
+```
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
+
+### 2. Vercel Hosting (Static Dashboard)
+The repository is configured via `vercel.json` as a **pure static site** (`outputDirectory: "frontend"`).
+- Vercel builds and hosts the dashboard UI statically without invoking any serverless Python functions.
+- If you access the dashboard on Vercel while your local agent is stopped, the dashboard displays a clear, informative **"Local Agent Offline"** banner.
+- Once you start `python run.py` locally, the Vercel dashboard automatically connects to your local machine (`http://127.0.0.1:8000`) and provides full control over the browser and discovery engine.
+
+---
+
 ## Running Tests
 
 Execute the automated test suite with pytest:
