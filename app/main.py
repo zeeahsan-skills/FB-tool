@@ -197,6 +197,82 @@ async def get_discovery_results():
     )
 
 
+# ==========================================
+# Database Persistence Endpoints (Prompt 4)
+# ==========================================
+
+from typing import Any, Dict, List
+from app.database import (
+    check_supabase_connection,
+    list_groups,
+    list_analyzed_groups,
+    get_group_by_id,
+    get_analysis_for_group,
+    list_analyses,
+    upsert_analysis,
+    DatabaseStatusResponse,
+    GroupAnalysis,
+)
+
+
+@app.get("/api/database/status", response_model=DatabaseStatusResponse)
+async def get_database_status():
+    """
+    Returns the configuration and connectivity status of Supabase.
+    Sensitive credentials and secrets are strictly redacted.
+    """
+    status = check_supabase_connection()
+    return DatabaseStatusResponse(**status)
+
+
+@app.get("/api/groups")
+async def get_persisted_groups(limit: int = 100, offset: int = 0):
+    """Returns persistent groups stored in Supabase."""
+    return list_groups(limit=limit, offset=offset)
+
+
+@app.get("/api/groups/analyzed")
+async def get_analyzed_groups(limit: int = 100, offset: int = 0):
+    """Returns persistent groups that have completed analysis."""
+    return list_analyzed_groups(limit=limit, offset=offset)
+
+
+@app.get("/api/groups/{group_id}")
+async def get_group(group_id: str):
+    """Retrieves a single group by its ID."""
+    group = get_group_by_id(group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return group
+
+
+@app.get("/api/groups/{group_id}/analysis")
+async def get_group_analysis(group_id: str):
+    """Retrieves analysis intelligence for a group."""
+    analysis = get_analysis_for_group(group_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found for group")
+    return analysis
+
+
+@app.post("/api/groups/{group_id}/analysis")
+async def save_group_analysis(group_id: str, payload: GroupAnalysis):
+    """Saves or updates Gemini analysis for a group in Supabase."""
+    payload.group_id = group_id
+    saved = upsert_analysis(payload)
+    if not saved:
+        raise HTTPException(status_code=500, detail="Failed to persist analysis to database")
+    return saved
+
+
+@app.get("/api/analyses")
+async def get_analyses(limit: int = 100, offset: int = 0):
+    """Lists group analyses stored in Supabase."""
+    return list_analyses(limit=limit, offset=offset)
+
+
+
+
 @app.get("/api/browser/debug_dom")
 async def debug_dom():
     """Inspects active page DOM structure to analyze rendered Facebook elements."""

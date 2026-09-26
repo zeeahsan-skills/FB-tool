@@ -143,12 +143,22 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--accent-amber);
+  background-color: var(--text-dim);
 }
 
 .status-dot.active {
   background-color: var(--accent-green);
   box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+}
+
+.status-dot.warning {
+  background-color: var(--accent-amber);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
+}
+
+.status-dot.error {
+  background-color: var(--accent-red);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
 }
 
 /* Main Container */

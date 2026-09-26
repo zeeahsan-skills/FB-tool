@@ -1,12 +1,32 @@
 # Facebook Group Research Agent
 
-A production-ready foundation for automated Facebook group research, keyword intelligence, and community discovery.
+A production-ready foundation for automated Facebook group research, keyword intelligence, community discovery, and persistent database storage.
 
-> **Note (Prompt 1 of 6):** This is the core architectural foundation: environment configuration, structured logging, persistent Playwright Chromium browser management, FastAPI backend, and dashboard UI. Scraping, Gemini AI analysis, and Supabase persistence will be layered in subsequent phases.
+> **Status (Prompt 4 of 6 - Supabase Persistence):** Core architectural foundation, persistent Playwright Chromium browser management, FastAPI backend, background Facebook Group Discovery Engine, and Supabase persistent PostgreSQL storage layer with graceful offline degradation.
 
 ---
 
 ## Architecture Overview
+
+```text
+                VERCEL
+          Static Frontend
+                 │
+                 │ HTTP
+                 ▼
+         LOCAL FASTAPI
+                 │
+      ┌──────────┴──────────┐
+      ▼                     ▼
+ PLAYWRIGHT              GEMINI
+      │                     │
+      ▼                     │
+   FACEBOOK                 │
+                            │
+             ┌──────────────┘
+             ▼
+          SUPABASE
+```
 
 ```text
 facebook-group-agent/
@@ -20,19 +40,34 @@ facebook-group-agent/
 │   │   ├── browser_manager.py
 │   │   └── session_manager.py
 │   │
-│   ├── discovery/            # (Phase 2: Group search & filtering)
-│   ├── analyzer/             # (Phase 4: Gemini post analysis)
-│   ├── database/             # (Phase 5: Supabase persistence)
-│   └── export/               # (Phase 6: CSV / JSON reporting)
+│   ├── discovery/            # Group search, deduplication & keyword tracking
+│   │   ├── group_discoverer.py
+│   │   ├── facebook_search.py
+│   │   ├── deduplicator.py
+│   │   ├── group_parser.py
+│   │   └── models.py
+│   │
+│   ├── analyzer/             # Group post intelligence & Gemini analysis models
+│   │   └── models.py
+│   │
+│   ├── database/             # Supabase persistence layer & repositories
+│   │   ├── supabase_client.py
+│   │   ├── repositories.py
+│   │   └── models.py
+│   │
+│   └── export/               # (Phase 6: CSV / Excel export)
 │
-├── frontend/                 # Interactive dashboard UI
+├── frontend/                 # Interactive dashboard UI (Static for Vercel)
 │   ├── index.html
 │   ├── app.js
 │   └── styles.css
 │
+├── supabase/
+│   └── schema.sql            # PostgreSQL schema migration for Supabase
+│
 ├── data/                     # Persistent browser profile storage
 ├── logs/                     # Application logs (app.log)
-├── tests/                    # Unit & API test suite
+├── tests/                    # Comprehensive unit & API test suite
 ├── .env.example              # Environment variables template
 ├── requirements.txt          # Python dependencies
 └── run.py                    # Server launch script
@@ -40,15 +75,45 @@ facebook-group-agent/
 
 ---
 
+## Supabase Database Setup (Prompt 4)
+
+The application uses Supabase (PostgreSQL) as a persistent database layer for discovered groups and analyses.
+
+### 1. Create Supabase Project
+1. Log in to [Supabase](https://supabase.com) and create a new project.
+2. Note your **Project URL** and **API Key** in **Project Settings -> API**.
+
+### 2. Run Database Migration
+1. In your Supabase project dashboard, open the **SQL Editor** from the left navigation.
+2. Open [`supabase/schema.sql`](file:///c:/Users/lenovo/Documents/facebook-group-agent/supabase/schema.sql) in this repository and copy its content.
+3. Paste the SQL into the Supabase SQL Editor and click **Run**.
+4. This creates:
+   - `groups` table: Stores unique Facebook groups, canonical URLs, member counts, privacy, and matched keyword arrays.
+   - `analyses` table: Stores activity metrics, external link policies, rules summaries, and raw JSON evidence.
+   - Automatic `updated_at` trigger functions and optimized query indexes.
+
+### 3. Configure Credentials in `.env`
+Open your local `.env` file (never commit this file) and populate:
+
+```ini
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_KEY=your-backend-api-key
+```
+
+### 4. Graceful Degradation
+- If Supabase credentials are not configured or the network is unreachable, discovery **will not crash**.
+- The agent logs the database error, preserves groups in local memory, and continues discovering other groups.
+- The UI header displays a live status indicator showing whether Supabase is **Connected**, **Unreachable**, or **Not Configured**.
+
+---
+
 ## Getting Started (Windows Guide)
 
 ### 1. Prerequisites
-- Python 3.11+ installed (e.g. via [python.org](https://www.python.org/) or Miniconda).
+- Python 3.11+ installed.
 - PowerShell or Windows Command Prompt.
 
 ### 2. Setup Virtual Environment
-
-Open PowerShell in the project directory:
 
 ```powershell
 # Navigate into the project folder
@@ -68,33 +133,15 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
-> **Note:** If `playwright install` encounters permission restrictions on Windows, run the installer directly via the bundled driver:
-> ```powershell
-> & ".\.venv\Lib\site-packages\playwright\driver\node.exe" ".\.venv\Lib\site-packages\playwright\driver\package\cli.js" install chromium
-> ```
-
 ### 4. Configure Environment
 
-Copy the example file to `.env`:
+Copy `.env.example` to `.env`:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Default contents in `.env`:
-```ini
-APP_ENV=development
-APP_HOST=127.0.0.1
-APP_PORT=8000
-
-BROWSER_HEADLESS=false
-BROWSER_USER_DATA_DIR=./data/browser-profile
-
-# Reserved for future phases:
-GEMINI_API_KEY=
-SUPABASE_URL=
-SUPABASE_KEY=
-```
+Set your configuration values inside `.env`.
 
 ---
 
@@ -110,76 +157,75 @@ The server will start at:
 - **Dashboard UI**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
 - **Interactive API Docs (Swagger)**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-### 2. Manual Login & Session Persistence Workflow
+### 2. Verify Database Connection
+Navigate to [http://127.0.0.1:8000/api/database/status](http://127.0.0.1:8000/api/database/status) or check the **DB Status Badge** in the top navigation bar.
 
-### 3. Facebook Group Discovery (Prompt 2)
+Expected response format:
+```json
+{
+  "configured": true,
+  "connected": true
+}
+```
 
-1. Launch or keep the browser started. If not yet logged in, complete manual login in the visible Chromium window.
-2. In the **Group Discovery Engine** card on the dashboard:
-   - Enter your target **Niche** (e.g. `Dating`).
-   - Enter your target **Country / Region** (e.g. `USA`).
-   - Enter one or more search **Keywords** (e.g. `dating groups`, `singles USA`). Use **+ Add keyword** to add more.
-   - Adjust **Max Results Per Keyword** (default 50) and **Scroll Batches** (default 5).
-3. Click **Start Discovery**.
-4. The agent will search each keyword sequentially in the background, navigate through group search results, and collect publicly visible groups.
-5. If the same group appears across multiple keywords, the **GroupDeduplicator** normalizes its canonical URL and merges all matched keywords into a single consolidated record.
-6. Real-time progress is displayed in the live progress bar and terminal log stream.
-7. Click **Stop** at any time to gracefully halt discovery while keeping already collected groups and keeping your browser session active.
-8. Discovered groups appear immediately in the **Discovered Groups** table with direct links to open each group in a new tab.
+If credentials are unset:
+```json
+{
+  "configured": false,
+  "connected": false
+}
+```
 
 ---
 
-## Deployment Architecture: Local Agent vs. Vercel
+## REST API Endpoints
 
-```text
-┌────────────────────────────────────────────────────────┐
-│                   LOCAL AGENT (Primary)                │
-│                                                        │
-│  FastAPI (127.0.0.1:8000)                             │
-│     ├── Playwright Chromium (Visible Mode)             │
-│     ├── Persistent Profile (./data/browser-profile)    │
-│     └── Background Group Discovery Engine              │
-└──────────────────────────▲─────────────────────────────┘
-                           │ Agent API (http://127.0.0.1:8000)
-┌──────────────────────────┴─────────────────────────────┐
-│                 VERCEL DEPLOYMENT (Static)             │
-│                                                        │
-│  • Pure static frontend hosting (HTML/CSS/JS)          │
-│  • No serverless functions, no crashes                 │
-│  • Shows 'Local Agent Offline' if agent is stopped     │
-└────────────────────────────────────────────────────────┘
-```
-
-### 1. Local Agent (Runs Browser Automation)
-The browser automation backend **must run locally on your computer** where persistent cookies, visible browser windows for manual login, and long-running discovery loops are supported.
-
-Start the agent:
-```powershell
-python run.py
-```
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
-
-### 2. Vercel Hosting (Static Dashboard)
-The repository is configured via `vercel.json` as a **pure static site** (`outputDirectory: "frontend"`).
-- Vercel builds and hosts the dashboard UI statically without invoking any serverless Python functions.
-- If you access the dashboard on Vercel while your local agent is stopped, the dashboard displays a clear, informative **"Local Agent Offline"** banner.
-- Once you start `python run.py` locally, the Vercel dashboard automatically connects to your local machine (`http://127.0.0.1:8000`) and provides full control over the browser and discovery engine.
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/health` | Health check endpoint |
+| `GET` | `/api/browser/status` | Current Playwright browser state |
+| `POST` | `/api/browser/start` | Launch persistent Chromium browser |
+| `POST` | `/api/browser/stop` | Gracefully close browser and persist session |
+| `POST` | `/api/discovery/start` | Launch background group discovery engine |
+| `GET` | `/api/discovery/status` | Live discovery progress & keyword tracking |
+| `POST` | `/api/discovery/stop` | Gracefully stop ongoing discovery |
+| `GET` | `/api/discovery/results` | In-memory deduplicated discovery results |
+| `GET` | `/api/database/status` | Supabase configuration and connectivity status |
+| `GET` | `/api/groups` | Persistent groups list from Supabase (supports `limit`, `offset`) |
+| `GET` | `/api/groups/analyzed` | Persistent groups that have associated analyses |
+| `GET` | `/api/groups/{group_id}` | Retrieve single group by UUID |
+| `GET` | `/api/groups/{group_id}/analysis` | Retrieve analysis intelligence for group |
+| `POST` | `/api/groups/{group_id}/analysis` | Upsert Gemini analysis intelligence for group |
+| `GET` | `/api/analyses` | List group analyses stored in Supabase |
 
 ---
 
-## Running Tests
+## Upsert & Deduplication Architecture
 
-Execute the automated test suite with pytest:
-
-```powershell
-.\.venv\Scripts\pytest.exe -v
-```
+1. **Canonical URL Normalization**: Strips tracking queries (`?ref=share`), mobile subdomains (`m.facebook.com`), and trailing slashes to guarantee exact identity across searches.
+2. **In-Memory Deduplication**: Maintained via `GroupDeduplicator` during active discovery runs.
+3. **Database Upsert**:
+   - Unique constraint on `groups.facebook_url`.
+   - When a known group is rediscovered: merges new `matched_keywords` with existing keywords, updates `member_count` and `privacy` if improved, and updates `updated_at`.
+   - Analysis records use unique constraint on `analyses.group_id` so subsequent analyses update the existing record rather than accumulating duplicates.
 
 ---
 
 ## Security & Reliability Guidelines
 
-- **No Stored Passwords**: Facebook passwords are never requested, stored, or automated.
-- **Access Control & Anti-Bot**: The system does not bypass CAPTCHAs, MFA, rate limits, or private APIs. Users authenticate through standard visible browser sessions.
-- **Polite Navigation**: Randomized pacing (`DISCOVERY_DELAY_MIN` to `DISCOVERY_DELAY_MAX`) prevents aggressive request bursts.
-- **Git Safety**: Persistent profiles (`data/`), log outputs (`logs/`), and `.env` credentials are excluded by `.gitignore`.
+- **Zero Secret Exposure**: Supabase secret keys and database credentials are backend-only. The static frontend and API endpoints never leak credentials.
+- **Git Protection**: `.env` is listed in `.gitignore` and must never be committed.
+- **Polite Navigation**: Anti-bot delays (`DISCOVERY_DELAY_MIN` to `DISCOVERY_DELAY_MAX`) prevent request bursts.
+- **Vercel Pure Static**: Vercel serves only static assets (`HTML/CSS/JS`). All automation, Playwright sessions, and Supabase writes run on the local agent.
+
+---
+
+## Running Automated Tests
+
+Run the full pytest suite:
+
+```powershell
+.\.venv\Scripts\pytest.exe -v
+```
+
+All 32 unit and API tests execute offline with mock drivers and require no live credentials.

@@ -102,6 +102,7 @@ class GroupDiscoveryService:
 
     async def _run_discovery_loop(self, req: DiscoveryStartRequest) -> None:
         """Worker loop executing search across keywords sequentially."""
+        from app.database.repositories import upsert_discovered_group
         bm = get_browser_manager()
 
         try:
@@ -158,6 +159,20 @@ class GroupDiscoveryService:
                             new_added += 1
                         else:
                             duplicates += 1
+
+                        # Persist to Supabase with graceful degradation
+                        try:
+                            canonical_url = group.url
+                            persisted_group = self.deduplicator._groups_by_canonical_url.get(canonical_url, group)
+                            upsert_discovered_group(persisted_group)
+                        except Exception as db_err:
+                            logger.error(
+                                "Database persistence error for group '%s' (%s): %s",
+                                group.name,
+                                group.url,
+                                db_err,
+                                exc_info=True
+                            )
 
                     logger.info(
                         "Keyword '%s' complete: Discovered %d groups (%d new, %d duplicate merged). Total collected: %d",

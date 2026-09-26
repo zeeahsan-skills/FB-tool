@@ -3,6 +3,10 @@ const healthBadge = document.getElementById("api-health-badge");
 const healthText = document.getElementById("api-health-text");
 const statusDot = healthBadge.querySelector(".status-dot");
 
+const dbHealthBadge = document.getElementById("db-health-badge");
+const dbHealthText = document.getElementById("db-health-text");
+const dbStatusDot = document.getElementById("db-status-dot");
+
 const statusLabel = document.getElementById("browser-status-label");
 const indicatorBadge = document.getElementById("browser-indicator-badge");
 const headlessStatus = document.getElementById("headless-status");
@@ -429,11 +433,38 @@ async function stopDiscovery() {
 // Event Listeners & Periodic Polling
 // ---------------------------------------------------------------------------
 
+async function checkDatabaseStatus() {
+  if (!dbHealthBadge || !dbHealthText || !dbStatusDot) return;
+  try {
+    const res = await fetch(apiUrl("/api/database/status"));
+    if (res.ok) {
+      const data = await res.json();
+      if (data.configured && data.connected) {
+        dbHealthText.textContent = "Supabase Active";
+        dbStatusDot.className = "status-dot active";
+      } else if (data.configured && !data.connected) {
+        dbHealthText.textContent = "DB Unreachable";
+        dbStatusDot.className = "status-dot warning";
+      } else {
+        dbHealthText.textContent = "DB Not Configured";
+        dbStatusDot.className = "status-dot";
+      }
+    } else {
+      dbHealthText.textContent = "DB Error";
+      dbStatusDot.className = "status-dot error";
+    }
+  } catch (err) {
+    dbHealthText.textContent = "DB Offline";
+    dbStatusDot.className = "status-dot";
+  }
+}
+
 btnStartBrowser.addEventListener("click", startBrowser);
 btnStopBrowser.addEventListener("click", stopBrowser);
 btnRefresh.addEventListener("click", async () => {
   appendLog("Refreshing agent state...", "info");
   await checkHealth();
+  await checkDatabaseStatus();
   await updateBrowserStatus();
   await updateDiscoveryStatus();
   await fetchDiscoveryResults();
@@ -450,11 +481,13 @@ btnClearLogs.addEventListener("click", () => {
 
 // Initial boot & polling
 checkHealth();
+checkDatabaseStatus();
 updateBrowserStatus();
 updateDiscoveryStatus();
 fetchDiscoveryResults();
 
 setInterval(checkHealth, 10000);
+setInterval(checkDatabaseStatus, 10000);
 setInterval(updateBrowserStatus, 4000);
 setInterval(updateDiscoveryStatus, 2500);
 setInterval(fetchDiscoveryResults, 4000);
