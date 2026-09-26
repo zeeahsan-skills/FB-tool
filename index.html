@@ -215,16 +215,127 @@
         </div>
       </section>
 
-      <!-- Discovered Groups Results Table -->
+      <!-- Discovered Groups Results Table & Filter Engine (Prompt 5) -->
       <section class="card results-card">
-        <div class="card-header">
+        <div class="card-header results-header">
           <div>
             <h2 class="card-title">Discovered Groups (<span id="results-count-badge">0</span>)</h2>
             <p class="card-description">
-              Deduplicated by canonical URL. All matching keywords preserved.
+              Live database records with multi-criteria filtering, sorting, pagination, and export.
             </p>
           </div>
-          <button id="btn-refresh-results" class="btn-sm">Refresh Table</button>
+          <div class="header-action-group">
+            <button id="btn-export-csv" class="btn btn-secondary btn-sm" title="Export current filtered results to CSV">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Export CSV</span>
+            </button>
+            <button id="btn-export-excel" class="btn btn-secondary btn-sm" title="Export current filtered results to Excel (.xlsx)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              <span>Export Excel</span>
+            </button>
+            <button id="btn-reset-filters" class="btn-sm" title="Reset all filters to defaults">Reset Filters</button>
+            <button id="btn-refresh-results" class="btn-sm btn-primary">Refresh</button>
+          </div>
+        </div>
+
+        <!-- Filter Controls Panel -->
+        <div class="filters-panel">
+          <div class="filters-grid">
+            <div class="filter-item search-item">
+              <label for="filter-keyword">Search Keyword / Name</label>
+              <input type="text" id="filter-keyword" class="form-input" placeholder="Keyword, name or URL...">
+            </div>
+            <div class="filter-item">
+              <label for="filter-niche">Niche</label>
+              <input type="text" id="filter-niche" class="form-input" placeholder="e.g. Dating, Tech...">
+            </div>
+            <div class="filter-item">
+              <label for="filter-country">Country / Region</label>
+              <input type="text" id="filter-country" class="form-input" placeholder="e.g. USA, UK...">
+            </div>
+            <div class="filter-item">
+              <label for="filter-privacy">Privacy</label>
+              <select id="filter-privacy" class="form-select">
+                <option value="all">All Privacy</option>
+                <option value="Public">Public</option>
+                <option value="Private">Private</option>
+                <option value="Unknown">Unknown</option>
+              </select>
+            </div>
+
+            <div class="filter-item">
+              <label for="filter-activity">Activity Status</label>
+              <select id="filter-activity" class="form-select">
+                <option value="all">All Activity</option>
+                <option value="Active">Active</option>
+                <option value="Moderate">Moderate</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Unknown">Unknown / Pending</option>
+              </select>
+            </div>
+            <div class="filter-item">
+              <label for="filter-external-link">External Links</label>
+              <select id="filter-external-link" class="form-select">
+                <option value="all">All Statuses</option>
+                <option value="Allowed">Allowed</option>
+                <option value="Restricted">Restricted</option>
+                <option value="Prohibited">Prohibited</option>
+                <option value="Unknown">Unknown</option>
+              </select>
+            </div>
+            <div class="filter-item">
+              <label for="filter-analyzed">Analysis Status</label>
+              <select id="filter-analyzed" class="form-select">
+                <option value="all">All Groups</option>
+                <option value="true">Analyzed</option>
+                <option value="false">Not Analyzed</option>
+              </select>
+            </div>
+            <div class="filter-item">
+              <label for="filter-min-members">Min Members</label>
+              <input type="number" id="filter-min-members" class="form-input" placeholder="0" min="0">
+            </div>
+            <div class="filter-item">
+              <label for="filter-max-members">Max Members</label>
+              <input type="number" id="filter-max-members" class="form-input" placeholder="Any" min="0">
+            </div>
+
+            <div class="filter-item">
+              <label for="filter-sort-by">Sort By</label>
+              <select id="filter-sort-by" class="form-select">
+                <option value="discovered_at">Discovery Date</option>
+                <option value="member_count">Member Count</option>
+                <option value="name">Group Name</option>
+                <option value="activity_status">Activity Status</option>
+              </select>
+            </div>
+            <div class="filter-item">
+              <label for="filter-sort-order">Sort Order</label>
+              <select id="filter-sort-order" class="form-select">
+                <option value="desc">Descending (High to Low)</option>
+                <option value="asc">Ascending (Low to High)</option>
+              </select>
+            </div>
+            <div class="filter-item">
+              <label for="filter-page-size">Page Size</label>
+              <select id="filter-page-size" class="form-select">
+                <option value="10">10 / page</option>
+                <option value="20" selected>20 / page</option>
+                <option value="50">50 / page</option>
+                <option value="100">100 / page</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <div class="table-container">
@@ -234,18 +345,157 @@
                 <th>Group Name</th>
                 <th>Members</th>
                 <th>Privacy</th>
+                <th>Niche</th>
+                <th>Country</th>
                 <th>Matched Keywords</th>
-                <th>Action</th>
+                <th>Discovered</th>
+                <th>Activity</th>
+                <th>Ext. Links</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="groups-table-body">
               <tr class="empty-row">
-                <td colspan="5">No groups discovered yet. Launch a discovery search above.</td>
+                <td colspan="10">No groups match your current filters. Adjust your search or launch a discovery run above.</td>
               </tr>
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination Controls Bar -->
+        <div class="pagination-bar">
+          <div class="pagination-info">
+            Showing page <strong id="page-num">1</strong> of <strong id="page-total">1</strong>
+            (<span id="page-records-total">0</span> total groups)
+          </div>
+          <div class="pagination-actions">
+            <button id="btn-prev-page" class="btn-sm" disabled>&larr; Previous</button>
+            <button id="btn-next-page" class="btn-sm" disabled>Next &rarr;</button>
+          </div>
+        </div>
       </section>
+
+      <!-- Group Details Modal View (Prompt 5) -->
+      <div id="group-details-modal" class="modal-overlay hidden">
+        <div class="modal-dialog">
+          <div class="modal-header">
+            <div class="modal-title-area">
+              <h3 id="modal-group-name" class="modal-title">Group Details</h3>
+              <a id="modal-group-url" href="#" target="_blank" rel="noopener noreferrer" class="modal-url">Open on Facebook &nearr;</a>
+            </div>
+            <button id="modal-close-btn" class="modal-close" title="Close dialog">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Group Overview Details -->
+            <div class="detail-section">
+              <h4 class="detail-heading">Group Overview</h4>
+              <div class="detail-grid">
+                <div class="detail-box">
+                  <span class="detail-label">Members</span>
+                  <span id="modal-member-count" class="detail-val">—</span>
+                </div>
+                <div class="detail-box">
+                  <span class="detail-label">Privacy</span>
+                  <span id="modal-privacy" class="detail-val">—</span>
+                </div>
+                <div class="detail-box">
+                  <span class="detail-label">Niche</span>
+                  <span id="modal-niche" class="detail-val">—</span>
+                </div>
+                <div class="detail-box">
+                  <span class="detail-label">Country</span>
+                  <span id="modal-country" class="detail-val">—</span>
+                </div>
+                <div class="detail-box">
+                  <span class="detail-label">Discovered At</span>
+                  <span id="modal-discovered-at" class="detail-val">—</span>
+                </div>
+                <div class="detail-box">
+                  <span class="detail-label">Data Source</span>
+                  <span id="modal-source" class="detail-val">facebook_search</span>
+                </div>
+              </div>
+
+              <div style="margin-top: 0.75rem;">
+                <span class="detail-label">Matched Keywords</span>
+                <div id="modal-matched-keywords" class="keywords-badge-list" style="margin-top: 0.25rem;">—</div>
+              </div>
+            </div>
+
+            <!-- Gemini Analysis & Intelligence Section -->
+            <div class="detail-section gemini-section">
+              <div class="gemini-header">
+                <h4 class="detail-heading gemini-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                  </svg>
+                  Gemini LLM Intelligence &amp; Interpretation
+                </h4>
+                <span id="modal-analysis-badge" class="badge-status">Not Analyzed</span>
+              </div>
+
+              <div class="detail-grid" style="margin-bottom: 0.75rem;">
+                <div class="detail-box">
+                  <span class="detail-label">Activity Status</span>
+                  <span id="modal-activity-status" class="detail-val">—</span>
+                </div>
+                <div class="detail-box">
+                  <span class="detail-label">Activity Score</span>
+                  <span id="modal-activity-score" class="detail-val">—</span>
+                </div>
+                <div class="detail-box">
+                  <span class="detail-label">External Link Policy</span>
+                  <span id="modal-ext-link-status" class="detail-val">—</span>
+                </div>
+                <div class="detail-box">
+                  <span class="detail-label">Analyzed Date</span>
+                  <span id="modal-analyzed-at" class="detail-val">—</span>
+                </div>
+              </div>
+
+              <div class="summary-box">
+                <span class="detail-label">Overall Intelligence Summary</span>
+                <p id="modal-overall-summary" class="summary-text">No analysis available yet for this group.</p>
+              </div>
+
+              <div class="summary-box" style="margin-top: 0.5rem;">
+                <span class="detail-label">Activity & Engagement Summary</span>
+                <p id="modal-activity-summary" class="summary-text">—</p>
+              </div>
+
+              <div class="summary-box" style="margin-top: 0.5rem;">
+                <span class="detail-label">Rules Summary</span>
+                <p id="modal-rules-summary" class="summary-text">—</p>
+              </div>
+            </div>
+
+            <!-- Observed / Raw Evidence Section -->
+            <div class="detail-section evidence-section">
+              <h4 class="detail-heading">Observed &amp; Raw Evidence</h4>
+              <div class="summary-box">
+                <span class="detail-label">External Link Policy &amp; Evidence</span>
+                <p id="modal-ext-evidence" class="summary-text">—</p>
+              </div>
+
+              <div style="margin-top: 0.6rem;">
+                <span class="detail-label">Detected External URLs</span>
+                <div id="modal-external-urls" class="evidence-list" style="margin-top: 0.25rem;">None detected</div>
+              </div>
+
+              <div style="margin-top: 0.6rem;">
+                <span class="detail-label">Recent Posts Sample Evidence</span>
+                <div id="modal-recent-posts" class="evidence-list" style="margin-top: 0.25rem;">No post evidence recorded</div>
+              </div>
+
+              <details class="evidence-details" style="margin-top: 0.75rem;">
+                <summary class="detail-label" style="cursor: pointer;">Raw Evidence JSON Payload (Click to expand)</summary>
+                <pre id="modal-raw-json" class="raw-json-box">{}</pre>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Architecture Pipeline Roadmap -->
       <section class="card roadmap-card">

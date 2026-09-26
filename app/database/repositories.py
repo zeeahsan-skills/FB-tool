@@ -3,6 +3,7 @@ Database repositories for groups and analyses persistence.
 Graceful degradation: all operations return None/empty list and log errors if Supabase is unavailable.
 """
 from datetime import datetime, timezone
+import math
 import logging
 from typing import Any, Dict, List, Optional, Union
 
@@ -352,3 +353,212 @@ def list_analyses(limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error("Failed to list analyses: %s", e)
         return []
+
+
+def get_group_details(group_id: str) -> Optional[Dict[str, Any]]:
+    """Fetches a group record and its associated analysis intelligence."""
+    group = get_group_by_id(group_id)
+    if not group:
+        return None
+    analysis = get_analysis_for_group(group_id)
+    return {
+        "group": group,
+        "analysis": analysis
+    }
+
+
+def query_groups_filtered(
+    niche: Optional[str] = None,
+    country: Optional[str] = None,
+    privacy: Optional[str] = None,
+    activity_status: Optional[str] = None,
+    external_link_status: Optional[str] = None,
+    min_members: Optional[int] = None,
+    max_members: Optional[int] = None,
+    keyword: Optional[str] = None,
+    is_analyzed: Optional[bool] = None,
+    sort_by: str = "discovered_at",
+    sort_order: str = "desc",
+    page: int = 1,
+    page_size: int = 20,
+    limit: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Queries groups from Supabase with multi-criteria filtering, sorting, and pagination.
+    Gracefully handles unconfigured / offline database state.
+    """
+    client = get_supabase_client()
+    if client is None:
+        return {
+            "total": 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": 1,
+            "groups": [],
+        }
+
+    try:
+        # Fetch groups joined with analyses or fallback to two queries
+        raw_groups: List[Dict[str, Any]] = []
+        try:
+            res = client.table("groups").select("*, analyses(*)").execute()
+            raw_groups = res.data or []
+        except Exception:
+            try:
+                g_res = client.table("groups").select("*").execute()
+                raw_groups = g_res.data or []
+                try:
+                    a_res = client.table("analyses").select("*").execute()
+                    analyses_map = {a["group_id"]: a for a in (a_res.data or []) if a.get("group_id")}
+                    for g in raw_groups:
+                        if g.get("id") in analyses_map:
+                            g["analyses"] = [analyses_map[g["id"]]]
+                except Exception:
+                    pass
+            except Exception:
+                raw_groups = []
+
+        # If raw_groups is empty or doesn't have analyses joined, check if we need analyses
+        if raw_groups and not any(g.get("analyses") for g in raw_groups):
+            try:
+                a_res = client.table("analyses").select("*").execute()
+                if a_res.data:
+                    analyses_map = {a["group_id"]: a for a in a_res.data if a.get("group_id")}
+                    for g in raw_groups:
+                        if g.get("id") in analyses_map:
+                            g["analyses"] = [analyses_map[g["id"]]]
+            except Exception:
+                pass
+
+        # Python-side filtering for all criteria
+        filtered: List[Dict[str, Any]] = []
+        kw_clean = keyword.strip().lower() if keyword and keyword.strip() else None
+        niche_clean = niche.strip().lower() if niche and niche.strip() else None
+        country_clean = country.strip().lower() if country and country.strip() else None
+        privacy_clean = privacy.strip().lower() if privacy and privacy.strip().lower() != "all" else None
+        act_clean = activity_status.strip().lower() if activity_status and activity_status.strip().lower() != "all" else None
+        ext_clean = external_link_status.strip().lower() if external_link_status and external_link_status.strip().lower() != "all" else None
+
+        for g in raw_groups:
+            # Flatten analysis reference
+            analysis = None
+            if g.get("analyses") and len(g["analyses"]) > 0:
+                analysis = g["analyses"][0]
+            elif isinstance(g.get("analysis"), dict):
+                analysis = g["analysis"]
+            g["analysis"] = analysis
+
+            # Filter: niche
+            if niche_clean:
+                g_niche = (g.get("niche") or "").lower()
+                if niche_clean not in g_niche:
+                    continue
+
+            # Filter: country
+            if country_clean:
+                g_country = (g.get("country") or "").lower()
+                if country_clean not in g_country:
+                    continue
+
+            # Filter: privacy
+            if privacy_clean:
+                g_priv = (g.get("privacy") or "").lower()
+                if privacy_clean not in g_priv:
+                    continue
+
+            # Filter: member count
+            mem_count = g.get("member_count")
+            if min_members is not None and min_members > 0:
+                if mem_count is None or mem_count < min_members:
+                    continue
+            if max_members is not None and max_members > 0:
+                if mem_count is not None and mem_count > max_members:
+                    continue
+
+            # Filter: is_analyzed
+            has_analysis = analysis is not None
+            if is_analyzed is not None:
+                if is_analyzed and not has_analysis:
+                    continue
+                if not is_analyzed and has_analysis:
+                    continue
+
+            # Filter: keyword (matches group name, URL, or matched_keywords)
+            if kw_clean:
+                name_match = kw_clean in (g.get("name") or "").lower()
+                kws = g.get("matched_keywords") or []
+                kw_match = any(kw_clean in str(k).lower() for k in kws)
+                url_match = kw_clean in (g.get("facebook_url") or g.get("url") or "").lower()
+                if not (name_match or kw_match or url_match):
+                    continue
+
+            # Filter: activity_status
+            if act_clean:
+                curr_act = (analysis.get("activity_status") if analysis else (g.get("activity_status") or "unknown")) or "unknown"
+                if act_clean == "unknown":
+                    if curr_act.lower() not in ("unknown", "not analyzed", ""):
+                        continue
+                else:
+                    if curr_act.lower() != act_clean:
+                        continue
+
+            # Filter: external_link_status
+            if ext_clean:
+                curr_ext = (analysis.get("external_link_status") if analysis else (g.get("external_link_status") or "unknown")) or "unknown"
+                if ext_clean == "unknown":
+                    if curr_ext.lower() not in ("unknown", "not analyzed", ""):
+                        continue
+                else:
+                    if curr_ext.lower() != ext_clean:
+                        continue
+
+            filtered.append(g)
+
+        # Sorting
+        is_reverse = (sort_order.lower() == "desc")
+        if sort_by == "member_count":
+            filtered.sort(key=lambda x: (x.get("member_count") or 0), reverse=is_reverse)
+        elif sort_by == "name":
+            filtered.sort(key=lambda x: (x.get("name") or "").lower(), reverse=is_reverse)
+        elif sort_by == "activity_status":
+            filtered.sort(
+                key=lambda x: (
+                    ((x.get("analysis") or {}).get("activity_status") or "Unknown").lower()
+                ),
+                reverse=is_reverse
+            )
+        else:  # default: discovered_at
+            filtered.sort(key=lambda x: (x.get("discovered_at") or ""), reverse=is_reverse)
+
+        total = len(filtered)
+        if limit is not None:
+            paged = filtered[:limit]
+            total_pages = 1
+        else:
+            page_size = max(1, min(page_size, 100))
+            page = max(1, page)
+            total_pages = max(1, math.ceil(total / page_size)) if total > 0 else 1
+            if page > total_pages and total > 0:
+                page = total_pages
+            start = (page - 1) * page_size
+            end = start + page_size
+            paged = filtered[start:end]
+
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "groups": paged,
+        }
+
+    except Exception as e:
+        logger.error("Error executing query_groups_filtered: %s", e, exc_info=True)
+        return {
+            "total": 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": 1,
+            "groups": [],
+        }
+

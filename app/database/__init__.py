@@ -20,6 +20,8 @@ from app.database.repositories import (
     list_groups,
     list_analyzed_groups,
     list_analyses,
+    get_group_details,
+    query_groups_filtered,
 )
 
 __all__ = [
@@ -41,4 +43,7 @@ __all__ = [
     "list_groups",
     "list_analyzed_groups",
     "list_analyses",
+    "get_group_details",
+    "query_groups_filtered",
 ]
+

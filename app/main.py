@@ -9,7 +9,7 @@ if sys.platform == "win32":
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
@@ -198,21 +198,25 @@ async def get_discovery_results():
 
 
 # ==========================================
-# Database Persistence Endpoints (Prompt 4)
+# Database Persistence, Filters & Export (Prompts 4 & 5)
 # ==========================================
 
-from typing import Any, Dict, List
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 from app.database import (
     check_supabase_connection,
     list_groups,
     list_analyzed_groups,
     get_group_by_id,
+    get_group_details,
     get_analysis_for_group,
     list_analyses,
     upsert_analysis,
+    query_groups_filtered,
     DatabaseStatusResponse,
     GroupAnalysis,
 )
+from app.export import generate_csv, generate_excel
 
 
 @app.get("/api/database/status", response_model=DatabaseStatusResponse)
@@ -226,9 +230,92 @@ async def get_database_status():
 
 
 @app.get("/api/groups")
-async def get_persisted_groups(limit: int = 100, offset: int = 0):
-    """Returns persistent groups stored in Supabase."""
-    return list_groups(limit=limit, offset=offset)
+async def get_persisted_groups(
+    niche: Optional[str] = None,
+    country: Optional[str] = None,
+    privacy: Optional[str] = None,
+    activity_status: Optional[str] = None,
+    external_link_status: Optional[str] = None,
+    min_members: Optional[int] = None,
+    max_members: Optional[int] = None,
+    keyword: Optional[str] = None,
+    is_analyzed: Optional[bool] = None,
+    sort_by: str = "discovered_at",
+    sort_order: str = "desc",
+    page: int = 1,
+    page_size: int = 20,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+    paginated: bool = False,
+):
+    """
+    Returns persistent groups stored in Supabase.
+    Supports filtering, sorting, and pagination.
+    Maintains backward compatibility: returns raw list when paginated=False.
+    """
+    has_filters = any([
+        niche, country, privacy, activity_status, external_link_status,
+        min_members is not None, max_members is not None, keyword,
+        is_analyzed is not None, sort_by != "discovered_at", sort_order != "desc"
+    ])
+
+    if not paginated and not has_filters:
+        return list_groups(limit=limit or 100, offset=offset or 0)
+
+    result = query_groups_filtered(
+        niche=niche,
+        country=country,
+        privacy=privacy,
+        activity_status=activity_status,
+        external_link_status=external_link_status,
+        min_members=min_members,
+        max_members=max_members,
+        keyword=keyword,
+        is_analyzed=is_analyzed,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        page_size=page_size,
+        limit=limit,
+    )
+
+    if paginated:
+        return result
+    return result["groups"]
+
+
+@app.get("/api/groups/filter")
+async def get_filtered_groups(
+    niche: Optional[str] = None,
+    country: Optional[str] = None,
+    privacy: Optional[str] = None,
+    activity_status: Optional[str] = None,
+    external_link_status: Optional[str] = None,
+    min_members: Optional[int] = None,
+    max_members: Optional[int] = None,
+    keyword: Optional[str] = None,
+    is_analyzed: Optional[bool] = None,
+    sort_by: str = "discovered_at",
+    sort_order: str = "desc",
+    page: int = 1,
+    page_size: int = 20,
+):
+    """Returns paginated, multi-filtered groups with metadata for the dashboard table."""
+    return query_groups_filtered(
+        niche=niche,
+        country=country,
+        privacy=privacy,
+        activity_status=activity_status,
+        external_link_status=external_link_status,
+        min_members=min_members,
+        max_members=max_members,
+        keyword=keyword,
+        is_analyzed=is_analyzed,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @app.get("/api/groups/analyzed")
@@ -244,6 +331,15 @@ async def get_group(group_id: str):
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     return group
+
+
+@app.get("/api/groups/{group_id}/details")
+async def get_group_full_details(group_id: str):
+    """Retrieves combined group information, analysis, and raw evidence."""
+    details = get_group_details(group_id)
+    if not details:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return details
 
 
 @app.get("/api/groups/{group_id}/analysis")
@@ -269,6 +365,105 @@ async def save_group_analysis(group_id: str, payload: GroupAnalysis):
 async def get_analyses(limit: int = 100, offset: int = 0):
     """Lists group analyses stored in Supabase."""
     return list_analyses(limit=limit, offset=offset)
+
+
+# ==========================================
+# Export Endpoints (Prompt 5)
+# ==========================================
+
+@app.get("/api/export/csv")
+async def export_groups_csv(
+    niche: Optional[str] = None,
+    country: Optional[str] = None,
+    privacy: Optional[str] = None,
+    activity_status: Optional[str] = None,
+    external_link_status: Optional[str] = None,
+    min_members: Optional[int] = None,
+    max_members: Optional[int] = None,
+    keyword: Optional[str] = None,
+    is_analyzed: Optional[bool] = None,
+    sort_by: str = "discovered_at",
+    sort_order: str = "desc",
+):
+    """
+    Exports currently filtered Facebook groups as a CSV download.
+    Never exposes internal credentials or API keys in the exported data.
+    """
+    data = query_groups_filtered(
+        niche=niche,
+        country=country,
+        privacy=privacy,
+        activity_status=activity_status,
+        external_link_status=external_link_status,
+        min_members=min_members,
+        max_members=max_members,
+        keyword=keyword,
+        is_analyzed=is_analyzed,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        limit=2000,
+    )
+    groups = data.get("groups", [])
+    csv_content = generate_csv(groups)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    filename = f"facebook_groups_{timestamp}.csv"
+
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-cache",
+        },
+    )
+
+
+@app.get("/api/export/excel")
+async def export_groups_excel(
+    niche: Optional[str] = None,
+    country: Optional[str] = None,
+    privacy: Optional[str] = None,
+    activity_status: Optional[str] = None,
+    external_link_status: Optional[str] = None,
+    min_members: Optional[int] = None,
+    max_members: Optional[int] = None,
+    keyword: Optional[str] = None,
+    is_analyzed: Optional[bool] = None,
+    sort_by: str = "discovered_at",
+    sort_order: str = "desc",
+):
+    """
+    Exports currently filtered Facebook groups as a formatted Excel (.xlsx) workbook.
+    Never exposes internal credentials or API keys in the exported data.
+    """
+    data = query_groups_filtered(
+        niche=niche,
+        country=country,
+        privacy=privacy,
+        activity_status=activity_status,
+        external_link_status=external_link_status,
+        min_members=min_members,
+        max_members=max_members,
+        keyword=keyword,
+        is_analyzed=is_analyzed,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        limit=2000,
+    )
+    groups = data.get("groups", [])
+    excel_bytes = generate_excel(groups)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    filename = f"facebook_groups_{timestamp}.xlsx"
+
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-cache",
+        },
+    )
+
 
 
 
